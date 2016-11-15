@@ -31,8 +31,14 @@ public:
 
   /**
    * Moves the buffer by one position in the current direction specified by 
-   * TransferOperatorBuffer::getDirection(). Note that this will reverse the direction by
-   * one. 
+   * TransferOperatorBuffer::getDirection(). 
+   * This will reverse the direction once we are at one of the
+   * boundaries. This means that if we are moving to the left (getDirection() 
+   * returns -1) and we are at the second site (getPosition() returns 1) prior 
+   * to the call to moveBuffer(), after the call to moveBuffer() we will have
+   * moved to the first site (getPosition() returns 0) and we will be moving to
+   * the right (getDirection() returns 1) upon the next call to moveBuffer().
+   * Similar statements hold for the other boundary.
    **/
   void moveBuffer();
 
