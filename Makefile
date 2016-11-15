@@ -14,7 +14,7 @@ $(img_targetfiles): %.svg: %.tex
 	# $* is the stem of the target
 	pdf2svg $*.pdf $*.svg
 
-doc: eigen_dmrg.doxygen tutorial.md build_instructions.md ising.cc $(img_targetfiles) 
+doc: eigen_dmrg.doxygen README.md tutorial.md build_instructions.md ising.cc $(img_targetfiles) 
 	doxygen $< 
 
 ising: ising.cc

@@ -17,6 +17,13 @@ many universities for distributed computing.
 General usage
 -------------
 
-There is a @subpage tutorial and a summary of @subpage build_instructions. 
+There is a @subpage tutorial and a summary of @subpage build_instructions.
+
+To generate the documentation, just clone the repository and run 
+
+    make doc
+
+Note that this requires pdflatex and pdf2svg for the generation of figures that
+were created using tikz. 
 
 
