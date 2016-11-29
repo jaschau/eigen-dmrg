@@ -37,8 +37,8 @@ IsingMPO::IsingMPO(std::size_t N, double J) : TransInvMPO<double, 2, 2>(N, 3)
   this->wBulk.setElement(2, 1, -J*pauliZ);
   this->wBulk.setElement(2, 2, opEye, true);
 
-  this->wLeft.setElement(0, 0, -pauliZ);
-  this->wLeft.setElement(0, 1, -h*pauliX);
+  this->wLeft.setElement(0, 0, -h*pauliX);
+  this->wLeft.setElement(0, 1, -J*pauliZ);
   this->wLeft.setElement(0, 2, opEye, true);
 
   this->wRight.setElement(0, 0, opEye, true);
@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
   std::size_t D = 32;
   // Size of the chain
   std::size_t N = 16;
-  double J = 10.;
+  double J = 0.;
   // Create a MPS with N sites of physical dimension d=2 and internal bond dimension D
   MPS<double> mps(std::vector<std::size_t>(N, 2), D);
   // MPO representation of the Hamiltonian
@@ -76,12 +76,13 @@ int main(int argc, char** argv) {
   // get a variational estimate how close we are to a gound ground state
   // approximation
   double qual = std::sqrt(std::abs(en*en - en2))/std::abs(en);
+  std::cout << "Energy is " << en << std::endl;
   // outputs ~ 1e-8 at my system
   std::cout << "Qual is " << qual << std::endl;
 
   // evaluate order parameter
   TransInvSingleSiteMPO<double, 2, 2> mpoMag(mps.N, 
-    1./mps.N*ham.pauliZ);
+    1./mps.N*ham.pauliX);
   double mag = mps.expValue(mpoMag);
   
   std::cout << "mag: " << mag << std::endl;

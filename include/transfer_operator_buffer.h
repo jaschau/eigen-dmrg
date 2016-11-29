@@ -65,12 +65,12 @@ public:
   }
 
   /**
-   * Returns the buffered transfer operator the the right of the current
+   * Returns the buffered transfer operator to the right of the current
    * position.
    */
   const Mat& getTopRight() 
   { 
-    return topBuffer[pos+2];
+    return topBuffer[pos+1];
   }
 
 private:
@@ -99,11 +99,11 @@ private:
 
 template<typename T, class Derived>
 TransferOperatorBuffer<T, Derived>::TransferOperatorBuffer(std::size_t N_, int direction_) :
-  N(N_), direction(direction_), topBuffer(N_+2)
+  N(N_), direction(direction_), topBuffer(N_+1)
 {
   pos = direction == 1 ? 0 : N-1;
 
-  topBuffer[N+1] = Mat::Ones(1,1);
+  topBuffer[N] = Mat::Ones(1,1);
   topBuffer[0] = Mat::Ones(1,1);
 }
 
@@ -118,7 +118,7 @@ void TransferOperatorBuffer<T, Derived>::moveBuffer()
       return;
     }
     
-    topBuffer[pos+1] = static_cast<Derived*>(this)->moveLeft(); 
+    topBuffer[pos] = static_cast<Derived*>(this)->moveLeft(); 
 
     --pos;
     if (pos == 0)

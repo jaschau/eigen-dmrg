@@ -102,9 +102,9 @@ states of our system as matrix product states which are straightforward
 generalizations of product states such that the MPO representation remains
 useful.
 
-Let us take a look at how we represent such a MPO in the code. We define our
-own class IsingMPO derived from TransInvMPO.
- 
+Let us take a look at how we represent such a MPO in the code. 
+
+    \code{.cpp}
     class IsingMPO : public TransInvMPO<double, 2, 2> 
     {
     public:
@@ -131,22 +131,30 @@ own class IsingMPO derived from TransInvMPO.
       this->wBulk.setElement(2, 1, -J*pauliZ);
       this->wBulk.setElement(2, 2, opEye, true);
 
-      this->wLeft.setElement(0, 0, -pauliZ);
-      this->wLeft.setElement(0, 1, -h*pauliX);
+      this->wLeft.setElement(0, 0, -h*pauliX);
+      this->wLeft.setElement(0, 1, -J*pauliZ);
       this->wLeft.setElement(0, 2, opEye, true);
 
       this->wRight.setElement(0, 0, opEye, true);
       this->wRight.setElement(1, 0, pauliZ);
       this->wRight.setElement(2, 0, -h*pauliX);
     }
+    \endcode
 
-TransInvMPO is derived from the class MPO and represents translationally
+In the first 9 lines, we define the class IsingMPO derived from TransInvMPO.
+TransInvMPO itself is derived from the class MPO and represents translationally
 invariant MPOs. The first template argument specifies the data type (double in
 this case) and the next two give the dimension of the on-site operators (i.e.,
 the dimensions of the Pauli matrices). For the translationally invariant case,
 we only have to define the variables wBulk, wLeft, and wRight which are
 instances of MPOTensor. MPOTensor instances represent the W matrices.
-MPOTensor is a sparse data structure storing operators. 
+MPOTensor is essentially just a sparse data structure storing operators.
+In the constructor, we initialize the tensors wBulk, wLeft, wRight according to
+our previous discussion. Note that in lines 21, 25, 29 and 31, we pass an
+additional flag true to setElement. This flag specifices that the operator 
+at the specified position is just the identity. With this this information,
+we avoid certain contractions in the evaluation of the operators, making the
+code more efficient. 
 
 
 Variational ground-state search
@@ -156,6 +164,7 @@ Let us next look at how we perform the variational ground-state search.
 With the MPO representation of our Hamiltonian set up, we have already done 
 most of the necessary work. 
 
+    \code{.cpp}
     // Internal bond dimension of the MPS
     std::size_t D = 32;
     // Size of the chain
@@ -194,18 +203,36 @@ most of the necessary work.
     double mag = mps.expValue(mpoMag);
     
     std::cout << "mag: " << mag << std::endl;
+    \endcode
 
-    return 0;
+In line 7, we create an MPS instance mps with internal bond dimension D
+representing a state \f$|\psi\rangle\f$ with N=16 sites.  Its tensors are
+automatically initialized in a random way such that the expectation value of
+the norm \f$|\langle \psi | \psi \rangle|\f$ is close to one. In line 13, we
+instantiate the DMRGOptimizer which will perform the variational optimization
+of the state mps. We refer to each iterative optimization step as a sweep
+through the MPS. It will clearer what this means in the next section. Since
+initially the state MPS is completely random, i.e., still pretty far away from
+a true eigenvector, there is no point in directly performing the calculation
+with high numerical accuracy. We therefore define in line 15 an array tols
+specifying the numerical accuracies to use in the different sweeps. As we
+converge to a true eigenvector upon increasing the sweep number, we also
+increase the numerical accuracy. Here, we work with a fixed number of 5 sweeps.
+We can estimate how close we get in this way to a true eigenstate by evaluating
+the expectation value \f$ \langle \psi | (H - \langle \psi | H | \psi
+    \rangle)^2 | \psi\rangle\f$, which is zero for an exact eigenvector.
+Finally, assuming sufficient convergence, we evaluate an observable. Since we
+are dealing with an Ising model, we are interested in its order parameter which
+is the magnetization per site, 
 
-Here, we create an MPS instance mps representing a state \f$|\psi\rangle\f$.
-Its tensors are automatically initialized in a random way such that the
-expectation value of the norm \f$|\langle \psi | \psi \rangle|\f$ is close to
-one.  The double value tols[i] contains the numerical precision to use for
-sweep i.  It improves performance if the numerical precision is slowly
-increased with further sweeps. The expectation value \f$ \langle \psi | (H -
-    \langle \psi | H | \psi \rangle)^2 | \psi\rangle\f$ is zero for an exact
-eigenvector and therefore gives us an estimate how close we are to a true  
-eigenstate.
+\f[
+  m = \frac{1}{N} \sum_{i=1}^{N} \sigma_i^z.
+\f]
+
+We represent this observable as a MPO. Since we often have to evaluate
+operators which are just sums of single site operators, there is a predefined
+class TransInvSingleSiteMPO representing such operators as an MPO. 
+
 
 ### DMRG in a nutshell ### 
 
@@ -285,28 +312,79 @@ Considering \f$(\sigma_s, a_{s-1}, a_s)\f$ as a multiindex, we can consider
 
 \f[ 
   H v = \lambda S v.
-\f]. 
+\f] 
 
-The DMRG algorithm proceeds by sweeping through the sites s of the system,
-solving the eigenvalue problem at each site and replacing the tensor at site s
-by the eigenvector to the smallest eigenvalue.
+The DMRG algorithm proceeds by starting at site s=1, solving the eigenvalue
+problem and replacing the tensor at site s=1 by the eigenvector to the smallest
+eigenvalue. It repeats the same steps with sites s=2,...,N.  Then the algorithm
+works its way backwards up to site s=1. This process is referred to as a sweep. 
 
 
 ### Transformation into a conventional eigenvalue problem ###
 
 The solution of this generalized eigenvalue problem is numerically unstable if
-the the matrix S is badly conditioned. Exploiting the invariance under a gauge
-transformation 
+the the matrix S is badly conditioned. Exploiting the gauge freedom of the MPS
+tensors, it is possible to bring the MPS into a left-canonical form and a
+right-canonical form around site s. For a detailed explanation how this works,
+  we refer to the literature. In essence, having a state that is left-canonical around sites 1 to s-1 and right-canonical around sites s+1 to N 
+means that we have
+ 
+![Left right normalization](../img/left_right_normalization.svg)
 
-\f[
-  (A^{[s]})^{\sigma_s}_{a_{s-1} a_s} 
-  \rightarrow \sum_{a_{s-1}', a_s} X_{a_{s-1} a_{s-1}'} (A^{[s]})^{\sigma_s}_{a_{s-1}' a_{s}'} 
-  X^{-1}_{a_s' a_s},
-\f]
+i.e., the matrix S is the identity matrix when optimizing at site s. Within the
+program, we can make a MPS  left-canonical and right-canonical by calling
+MPS::leftNormalize() and MPS::rightNormalize(). Specifically, imagine we have
+an MPS which is left-canonical and right-canonical around site s, i.e., sites 1
+to s-1 are left-canonical and sites s+1 to N are right-canonical. If we now
+call MPS::leftNormalize() with site s as a parameter, this will destroy the
+right-canonical form of site s+1 such that sites 1 to s are left-canonical and
+sites s+2 to N are right-canonical.  This shifts the left- and right-canonical
+form around site s to site s+1.  This fact is exploited in the optimization
+algorithm. In the constructor, the class DMRGOptimizer initializes a MPS in a
+right-canonical form around site s=1 via a call to DMRGOptimizer::initMps().
+After the optimization at each s, the left- and right-canonical form is
+shifted to site s+1 via a call to MPS::leftNormalize() in order to ensure that
+S is the identity matrix at each optimization step. 
 
-of all tensors with a matrix X, it is possible to bring the MPS into a
-left-canonical form and a right-canonical form around site s. 
+### Speeding up the algorithm through buffering ###
 
-### Implementation details ###
+It is obviously not necessary to recompute all the tensor contractions at each
+optimization step. We can speed up the algorithm by buffering some of the
+so-called left- and right-contracted transfer operators \f$L^{[s]}\f$ and \f$R^{[s]}\f$ defined as 
 
+![transfer operators](../img/transfer_operators.svg)
+
+It is obvious how \f$L^{[s]}\f$ and \f$R^{[s]}\f$ are useful for the solution
+of the eigenvalue problem at site s. For later reference we have also
+introduced the uncontracted transfer operator \f$T^{[s]}\f$.
+
+Let us consider the optimization at site s=1.  We use a buffer with N+1 sites
+storing the left- and right-contracted transfer operators as indicated in the
+table below.
+
+site 1        | site 2        | ... | site N+1
+------------- | ------------- | --- | -------------
+\f$L^{[1]}\f$ | \f$R^{[1]}\f$ | ... | \f$R^{[N]}\f$
+
+The storage convention is such that site s stores the operator \f$L^{[s]}\f$
+for site s and site s+1 stores the operator \f$R^{[s]}\f$. Upon going to the
+next site s=2, we calculate \f$L^{[2]}\f$ by contracting \f$L^{[1]}\f$ from 
+the left with transfer operator \f$T^{[1]}\f$. Our new buffer layout for
+optimization around site s=2 has the form 
+
+site 1        | site 2        | site 3        | ... | site N+1
+------------- | ------------- | ------------- | --- | -------------
+\f$L^{[1]}\f$ | \f$L^{[2]}\f$ | \f$R^{[2]}\f$ | ... | \f$R^{[N}]\f$
+
+We proceed in a similar way at all other sites.  Since maintaining a buffer of
+the form presented above is a common task in DMRG calculations, the buffer
+structure is abstracted in a class TransferOperatorBuffer.  It keeps track of
+a direction of motion through the one-dimensional buffer.  Access to
+\f$L^{[s]}\f$ and \f$R^{[s]}\f$ is possible through the methods
+TransferOperatorBuffer::getTopLeft() and
+TransferOperatorBuffer::getTopRight().  The only methods which have to be
+implemented by a derived class are moveLeft() and moveRight().  In the class
+DMRGOptimizer with the buffer position at site 1 and move direction to the
+right, the method moveRight() returns the contraction of \f$L^{[1]}\f$ with the
+transfer operator \f$T^{[1]}\f$ as described previously.
 

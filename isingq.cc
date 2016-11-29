@@ -277,7 +277,6 @@ int maina(int argc, char** argv)
 int main(int argc, char** argv)
 {
   // setenv("VECLIB_MAXIMUM_THREADS", "1", true);
-
   std::vector<int> valsD;
   std::vector<double> valsTol;
   std::size_t N;
@@ -330,6 +329,7 @@ int main(int argc, char** argv)
     std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; 
     return -1;
   }
+ 
 
   printf("# q=%lu, N=%lu, D=%s, h=%.6f, tols=%s\n", 
          q, N, toStr(valsD).c_str(), h, toStr(valsTol).c_str());

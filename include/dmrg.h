@@ -247,6 +247,11 @@ DMRGOptimizer<T,_Rows,_Cols>::DMRGOptimizer(
   initMps();
 }
 
+
+/**
+ * Right-normalizes the MPS around site s=1 and buffers the transfer operators
+ * that will be used in the optimization process. 
+ */
 template<typename T, int _Rows, int _Cols>
 void DMRGOptimizer<T,_Rows,_Cols>::initMps()
 {

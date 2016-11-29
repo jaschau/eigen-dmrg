@@ -2,7 +2,7 @@ CC = clang++
 EIGEN_DIR=/usr/local/include/eigen3
 SRCDIR=./include
 CFLAGS=-I$(SRCDIR) -I$(EIGEN_DIR) 
-OPTS=-DNDEBUG -O3 -msse3 -Wall -g -L/usr/local/lib 
+OPTS=-O3 -msse3 -Wall -g -L/usr/local/lib -DNDEBUG 
 
 .PHONY: clean
 
